@@ -1,5 +1,7 @@
 --ez-multi-cursor
 local M = {}
+local Cursor = require("Cursor")
+local debug_log = require("debug_log")
 
 -- Storing multiple cursors positions
 M.cursors = {}
@@ -12,28 +14,37 @@ M.config = {
 	insert_mode_keys = true,
 }
 
--- Debug log function to log messages in a file.
-local function debug_log(msg)
-	-- Build the path to the log file
 
-	local log_path = debug.getinfo(1, "S").source:sub(2) -- path to init.lua
-	log_path = vim.fn.fnamemodify(log_path, ":h") .. "/debug-log.text"
 
-	-- Open the file in append mode
-	local file = io.open(log_path, "a")
-	if not file then
-		vim.notify("Failed to open debug log file: " .. log_path, vim.log.levels.ERROR)
-		return
+--- Finds the index of cursor in cursors table by its key field
+---@param key string
+local function findIndex(key)
+	local index = -1
+
+	for i = 1, #M.cursors, 1 do
+		if M.cursors[i].key == key then
+			index = i
+			break;
+		end
 	end
 
-	-- Write timestamp + message
-	local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-	file:write(string.format("[%s] %s\n", timestamp, msg))
-
-	-- Close the file
-	file:close()
+	return index
 end
 
+
+--- Removes the curors from cursors by given given
+---@param index integer
+local function remove_cursor_from_cursors(index)
+	table.remove(M.cursors, index)
+end
+
+
+--- Adds a new cursor to cursors table
+---@param cur Cursor
+local function add_new_cursor_in_cursors(cur)
+	local cursor = Cursor.new(cur.x_cordinate, cur.y_cordinate, cur.buf, nil, cur.key)
+	table.insert(M.cursors, cursor)
+end
 
 ---Adds a cursor in cursor table if cursor doesn't exist, otherwise removes it
 local function add_or_remove_cursor()
@@ -45,21 +56,52 @@ local function add_or_remove_cursor()
 
 	-- Early return for empty lines
 	if #current_line == 0 then return end
+	-- Early return so it col_end wont exceed
 	if col == #current_line then return end
 
 	-- Remove Cursor if its already exist
 	local key = row .. ":" .. col
-	local cursor = M.cursors[key]
+	local index = findIndex(key)
 
-	if not cursor then
-		local cursorId = Add_Highlight(row, col, buf)
-		M.cursors[key] = { buf = buf, row = row, col = col, cursorId = cursorId }
+	-- If index is smaller than 0, then add new cursor to cursors table.
+	if index < 0 then
+		add_new_cursor_in_cursors(
+			{
+				x_cordinate = col,
+				y_cordinate = row,
+				key = key,
+				buf = buf
+			}
+		)
 	else
-		Remove_Highlight(cursor.cursorId, buf)
-		M.cursors[key] = nil;
+		remove_cursor_from_cursors(index)
 	end
 
+	Un_render_cursors();
+	Render_cursors();
 	M.enabled = true;
+end
+
+
+--- Render_cursors render all the cursor on nvim window
+function Render_cursors()
+	for i = 1, #M.cursors, 1 do
+		local c = M.cursors[i]
+		local id = Add_Highlight(c.y_cordinate - 1, c.x_cordinate, c.buf)
+		M.cursors[i].cursorId = id
+	end
+end
+
+-- This function un-render all the cursors from nvim window
+function Un_render_cursors()
+	local current_buf = vim.api.nvim_get_current_buf();
+	vim.api.nvim_buf_clear_namespace(current_buf, M.namespace, 0, -1)
+	for i = 1, #M.cursors, 1 do
+		if M.cursors[i].cursorId then
+			Remove_Highlight(M.cursors[i].cursorId, M.cursors[i].buf)
+			M.cursors[i].cursorId = nil
+		end
+	end
 end
 
 ---Add_Highlight function show create extmark on the current buffer and return cursorId.
@@ -71,8 +113,8 @@ function Add_Highlight(row, col, buf)
 	local current_buff = vim.api.nvim_get_current_buf();
 	local cursorId = 0
 	if buf == current_buff then
-		cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row - 1, col, {
-			end_row = row - 1,
+		cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row, col, {
+			end_row = row,
 			end_col = col + 1,
 			hl_group = "Cursor"
 		})
@@ -99,11 +141,24 @@ function Remove_All_Highlights(buf, ns)
 	M.cursors = {}
 end
 
+--- sets x cordinate to all the cursors
+--- @param x integer
+function Set_X_Cordinate(x)
+
+end
+
+--- Sets y cordinate to all the cursors
+--- @param y integer
+function Set_Y_Cordinate(y)
+
+end
+
 --- This function move all the cursors
 ---@param x integer
 ---@param y integer
 function Move_cursors(x, y)
 	local current_buf = vim.api.nvim_get_current_buf();
+	local buf_length = vim.api.nvim_buf_line_count(current_buf);
 
 	-- Collect all keys first to avoid iterating over newly added entries
 	local keys_to_process = {}
@@ -118,50 +173,80 @@ function Move_cursors(x, y)
 		end
 
 		local current_line = Get_line(cursor.row, current_buf)
+		local nextLine = Get_line(cursor.row + y, current_buf)
 
 		if current_buf == cursor.buf then
-			if #current_line > (cursor.col + x) and (cursor.col + x) >= 0 then
-				local updated_cursor = {
-					buf = cursor.buf,
-					row = cursor.row,
-					col = cursor.col + x,
-					cursorId = cursor.cursorId
-				}
+			local updated_cursor = cursor;
 
-				local newKey = updated_cursor.row .. ":" .. updated_cursor.col
 
-				if M.cursors[newKey] then
-					Remove_Highlight(
-						M.cursors[newKey].cursorId,
-						M.cursors[newKey].buf
-					)
+			if y ~= 0 then
+				if buf_length > (cursor.row + y) and (cursor.row + y) > 0 then
+					updated_cursor.row = cursor.row + y
 				end
 
-				Remove_Highlight(cursor.cursorId, cursor.buf)
-				updated_cursor.cursorId = Add_Highlight(
-					updated_cursor.row,
-					updated_cursor.col,
-					updated_cursor.buf
-				)
+				if #nextLine == 0 then
+					local row = updated_cursor.row
+					while #nextLine < 1 do
+						--debug_log("row inside loop: " .. row)
+						nextLine = Get_line(row, current_buf)
+						row = row + y
+					end
 
-				debug_log(
-					key .. "={row:" ..
-					cursor.row ..
-					", col:" ..
-					cursor.col ..
-					", cursorId:" ..
-					cursor.cursorId .. "}, VS " ..
-					newKey .. "={row:" ..
-					updated_cursor.row ..
-					", col:" ..
-					updated_cursor.col ..
-					", cursorId:" ..
-					updated_cursor.cursorId .. "}"
-				)
+					updated_cursor.row = row - 1
+				end
 
-				M.cursors[key] = nil
-				M.cursors[newKey] = updated_cursor
+				--debug_log("#nextLine (" .. #nextLine .. ") and cursor.col (" .. cursor.col .. ")")
+				if #nextLine > 0 and #nextLine - 1 < cursor.col then
+					updated_cursor.col = #nextLine - 1
+				end
 			end
+
+			if x ~= 0 then
+				if #current_line > (cursor.col + x) and (cursor.col + x) >= 0 then
+					updated_cursor.col = cursor.col + x
+				end
+			end
+
+
+			local newKey = updated_cursor.row .. ":" .. updated_cursor.col
+
+			if M.cursors[newKey] then
+				Remove_Highlight(
+					M.cursors[newKey].cursorId,
+					M.cursors[newKey].buf
+				)
+			end
+
+			Remove_Highlight(cursor.cursorId, cursor.buf)
+
+			--debug_log("#currentline :" .. #current_line .. ", #nextLine :" .. #nextLine)
+			--debug_log("row: " ..
+			--	updated_cursor.row ..
+			--	",col: " .. updated_cursor.col .. ",end_col: " .. updated_cursor.col + 1)
+
+			updated_cursor.cursorId = Add_Highlight(
+				updated_cursor.row,
+				updated_cursor.col,
+				updated_cursor.buf
+			)
+
+			debug_log(
+				key .. "={row:" ..
+				cursor.row ..
+				", col:" ..
+				cursor.col ..
+				", cursorId:" ..
+				cursor.cursorId .. "}, VS " ..
+				newKey .. "={row:" ..
+				updated_cursor.row ..
+				", col:" ..
+				updated_cursor.col ..
+				", cursorId:" ..
+				updated_cursor.cursorId .. "}"
+			)
+
+			M.cursors[key] = nil
+			M.cursors[newKey] = updated_cursor
 		end
 
 		::continue::
@@ -191,20 +276,34 @@ function M.setup(opts)
 		Remove_All_Highlights(buf, M.namespace)
 		return "<Esc>"
 	end, { expr = true })
-	vim.keymap.set("i", "<A-Right>", function()
+	--[[vim.keymap.set("i", "<A-Right>", function()
 		vim.schedule(function()
 			Move_cursors(1, 0)
 		end)
 		-- Return nothing special; just consume the key
 		return ""
-	end, { desc = "Move to right ->" })
+	end, { desc = "Move to right" })
 	vim.keymap.set("i", "<A-Left>", function()
 		vim.schedule(function()
 			Move_cursors(-1, 0)
 		end)
 		-- Return nothing special; just consume the key
 		return ""
-	end, { desc = "Move to right ->" })
+	end, { desc = "Move to left" })
+
+	vim.keymap.set("i", "<A-Up>", function()
+		vim.schedule(function()
+			Move_cursors(0, -1)
+		end)
+		return ""
+	end, { desc = "Move to up" })
+
+	vim.keymap.set("i", "<A-Down>", function()
+		vim.schedule(function()
+			Move_cursors(0, 1)
+		end)
+		return ""
+	end, { desc = "Move to down" })]] --
 end
 
 return M
