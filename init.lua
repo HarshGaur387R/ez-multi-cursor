@@ -1,20 +1,19 @@
 --ez-multi-cursor
 local M = {}
 local Cursor = require("Cursor")
-local debug_log = require("debug_log")
+local Debug_log = require("debug_log")
 
 -- Storing multiple cursors positions
 M.cursors = {}
 M.namespace = vim.api.nvim_create_namespace("ez-multi-cursor")
 M.enabled = false
 
+
 -- Configuration
 M.config = {
 	highlight_group = 'Visual',
 	insert_mode_keys = true,
 }
-
-
 
 --- Finds the index of cursor in cursors table by its key field
 ---@param key string
@@ -55,7 +54,11 @@ local function add_or_remove_cursor()
 	local current_line = vim.api.nvim_get_current_line()
 
 	-- Early return for empty lines
-	if #current_line == 0 then return end
+	if #current_line == 0 then
+		current_line = Replace_line(row, " ", buf)
+		col = 0
+	end
+
 	-- Early return so it col_end wont exceed
 	if col == #current_line then return end
 
@@ -141,16 +144,56 @@ function Remove_All_Highlights(buf, ns)
 	M.cursors = {}
 end
 
+---Replace a specific line in the current buffer.
+---@param line_number integer  -- 1-based line number
+---@param new_text string      -- replacement text
+---@return string -- Newely created line
+function Replace_line(line_number, new_text, bufnr)
+	local start = line_number - 1
+	local finish = line_number
+
+	-- Replace the line
+	vim.api.nvim_buf_set_lines(bufnr, start, finish, false, { new_text })
+	local lines = vim.api.nvim_buf_get_lines(bufnr, start, finish, false)
+
+	return lines[1]
+end
+
 --- sets x cordinate to all the cursors
 --- @param x integer
 function Set_X_Cordinate(x)
-
+	-- #TODO : Complete x cordinate movement logic
 end
 
 --- Sets y cordinate to all the cursors
 --- @param y integer
 function Set_Y_Cordinate(y)
+	local buffer = vim.api.nvim_get_current_buf()
+	local total_lines = vim.api.nvim_buf_line_count(buffer)
 
+	for i = 1, #M.cursors, 1 do
+		local cursor = M.cursors[i]
+
+		if (total_lines >= cursor.y_cordinate + y) and (cursor.y_cordinate + y > 0) then
+			local nextLine = Get_line(cursor.y_cordinate + y, buffer)
+
+			if #nextLine == 0 then
+				nextLine = Replace_line(cursor.y_cordinate + y, " ", buffer)
+			end
+
+			if #nextLine > 0 and #nextLine <= cursor.x_cordinate then
+				cursor.x_cordinate = #nextLine - 1
+			end
+
+			cursor.y_cordinate = cursor.y_cordinate + y
+			local newKey = cursor.y_cordinate .. ":" .. cursor.x_cordinate
+			cursor.newKey = newKey
+			M.cursors[i] = cursor
+		end
+	end
+
+	Un_render_cursors()
+	Render_cursors()
 end
 
 --- This function move all the cursors
@@ -230,7 +273,7 @@ function Move_cursors(x, y)
 				updated_cursor.buf
 			)
 
-			debug_log(
+			Debug_log(
 				key .. "={row:" ..
 				cursor.row ..
 				", col:" ..
@@ -291,19 +334,21 @@ function M.setup(opts)
 		return ""
 	end, { desc = "Move to left" })
 
+	]] --
+
 	vim.keymap.set("i", "<A-Up>", function()
 		vim.schedule(function()
-			Move_cursors(0, -1)
+			Set_Y_Cordinate(-1)
 		end)
 		return ""
 	end, { desc = "Move to up" })
 
 	vim.keymap.set("i", "<A-Down>", function()
 		vim.schedule(function()
-			Move_cursors(0, 1)
+			Set_Y_Cordinate(1)
 		end)
 		return ""
-	end, { desc = "Move to down" })]] --
+	end, { desc = "Move to down" })
 end
 
 return M
