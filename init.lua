@@ -162,7 +162,24 @@ end
 --- sets x cordinate to all the cursors
 --- @param x integer
 function Set_X_Cordinate(x)
-	-- #TODO : Complete x cordinate movement logic
+	local buffer = vim.api.nvim_get_current_buf();
+
+	for i = 1, #M.cursors, 1 do
+		local cursor = M.cursors[i]
+		local current_line = Get_line(cursor.y_cordinate, buffer)
+
+		if buffer == cursor.buf then
+			if (#current_line > cursor.x_cordinate + x) and (cursor.x_cordinate + x >= 0) then
+				cursor.x_cordinate = cursor.x_cordinate + x
+				local newKey = cursor.y_cordinate .. ":" .. cursor.x_cordinate
+				cursor.key = newKey
+				M.cursors[i] = cursor
+			end
+		end
+	end
+
+	Un_render_cursors();
+	Render_cursors();
 end
 
 --- Sets y cordinate to all the cursors
@@ -187,113 +204,13 @@ function Set_Y_Cordinate(y)
 
 			cursor.y_cordinate = cursor.y_cordinate + y
 			local newKey = cursor.y_cordinate .. ":" .. cursor.x_cordinate
-			cursor.newKey = newKey
+			cursor.key = newKey
 			M.cursors[i] = cursor
 		end
 	end
 
 	Un_render_cursors()
 	Render_cursors()
-end
-
---- This function move all the cursors
----@param x integer
----@param y integer
-function Move_cursors(x, y)
-	local current_buf = vim.api.nvim_get_current_buf();
-	local buf_length = vim.api.nvim_buf_line_count(current_buf);
-
-	-- Collect all keys first to avoid iterating over newly added entries
-	local keys_to_process = {}
-	for key, _ in pairs(M.cursors) do
-		table.insert(keys_to_process, key)
-	end
-
-	for _, key in ipairs(keys_to_process) do
-		local cursor = M.cursors[key]
-		if cursor == nil then
-			goto continue
-		end
-
-		local current_line = Get_line(cursor.row, current_buf)
-		local nextLine = Get_line(cursor.row + y, current_buf)
-
-		if current_buf == cursor.buf then
-			local updated_cursor = cursor;
-
-
-			if y ~= 0 then
-				if buf_length > (cursor.row + y) and (cursor.row + y) > 0 then
-					updated_cursor.row = cursor.row + y
-				end
-
-				if #nextLine == 0 then
-					local row = updated_cursor.row
-					while #nextLine < 1 do
-						--debug_log("row inside loop: " .. row)
-						nextLine = Get_line(row, current_buf)
-						row = row + y
-					end
-
-					updated_cursor.row = row - 1
-				end
-
-				--debug_log("#nextLine (" .. #nextLine .. ") and cursor.col (" .. cursor.col .. ")")
-				if #nextLine > 0 and #nextLine - 1 < cursor.col then
-					updated_cursor.col = #nextLine - 1
-				end
-			end
-
-			if x ~= 0 then
-				if #current_line > (cursor.col + x) and (cursor.col + x) >= 0 then
-					updated_cursor.col = cursor.col + x
-				end
-			end
-
-
-			local newKey = updated_cursor.row .. ":" .. updated_cursor.col
-
-			if M.cursors[newKey] then
-				Remove_Highlight(
-					M.cursors[newKey].cursorId,
-					M.cursors[newKey].buf
-				)
-			end
-
-			Remove_Highlight(cursor.cursorId, cursor.buf)
-
-			--debug_log("#currentline :" .. #current_line .. ", #nextLine :" .. #nextLine)
-			--debug_log("row: " ..
-			--	updated_cursor.row ..
-			--	",col: " .. updated_cursor.col .. ",end_col: " .. updated_cursor.col + 1)
-
-			updated_cursor.cursorId = Add_Highlight(
-				updated_cursor.row,
-				updated_cursor.col,
-				updated_cursor.buf
-			)
-
-			Debug_log(
-				key .. "={row:" ..
-				cursor.row ..
-				", col:" ..
-				cursor.col ..
-				", cursorId:" ..
-				cursor.cursorId .. "}, VS " ..
-				newKey .. "={row:" ..
-				updated_cursor.row ..
-				", col:" ..
-				updated_cursor.col ..
-				", cursorId:" ..
-				updated_cursor.cursorId .. "}"
-			)
-
-			M.cursors[key] = nil
-			M.cursors[newKey] = updated_cursor
-		end
-
-		::continue::
-	end
 end
 
 --- get_line function returns a line indexed at line_number
@@ -313,42 +230,49 @@ end
 function M.setup(opts)
 	opts = opts or {}
 
-	vim.keymap.set('i', '<C-d>', add_or_remove_cursor, { desc = "Adds a psuedo cursor at current cursor" })
-	vim.keymap.set('i', '<Esc>', function()
+	vim.keymap.set('n', '<C-d>', add_or_remove_cursor, { desc = "Adds a psuedo cursor at current cursor" })
+	vim.keymap.set('n', '<Esc>', function()
 		local buf = vim.api.nvim_get_current_buf();
 		Remove_All_Highlights(buf, M.namespace)
 		return "<Esc>"
 	end, { expr = true })
-	--[[vim.keymap.set("i", "<A-Right>", function()
+
+	vim.keymap.set("n", "<A-Right>", function()
 		vim.schedule(function()
-			Move_cursors(1, 0)
+			Set_X_Cordinate(1)
 		end)
-		-- Return nothing special; just consume the key
 		return ""
 	end, { desc = "Move to right" })
-	vim.keymap.set("i", "<A-Left>", function()
+
+	vim.keymap.set("n", "<A-Left>", function()
 		vim.schedule(function()
-			Move_cursors(-1, 0)
+			Set_X_Cordinate(-1)
 		end)
-		-- Return nothing special; just consume the key
 		return ""
 	end, { desc = "Move to left" })
 
-	]] --
-
-	vim.keymap.set("i", "<A-Up>", function()
+	vim.keymap.set("n", "<A-Up>", function()
 		vim.schedule(function()
 			Set_Y_Cordinate(-1)
 		end)
 		return ""
 	end, { desc = "Move to up" })
 
-	vim.keymap.set("i", "<A-Down>", function()
+	vim.keymap.set("n", "<A-Down>", function()
 		vim.schedule(function()
 			Set_Y_Cordinate(1)
 		end)
 		return ""
 	end, { desc = "Move to down" })
+
+
+	vim.api.nvim_create_autocmd("ModeChanged", {
+		pattern = "*:i", -- match any mode -> insert mode
+		callback = function()
+			local buf = vim.api.nvim_get_current_buf();
+			Remove_All_Highlights(buf, M.namespace)
+		end,
+	})
 end
 
 return M
