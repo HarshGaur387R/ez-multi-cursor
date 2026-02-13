@@ -8,7 +8,6 @@ M.cursors = {}
 M.namespace = vim.api.nvim_create_namespace("ez-multi-cursor")
 M.enabled = false
 
-
 -- Configuration
 M.config = {
 	highlight_group = 'Visual',
@@ -45,6 +44,21 @@ local function add_new_cursor_in_cursors(cur)
 	table.insert(M.cursors, cursor)
 end
 
+--- finds all the cursors at same cordinate from M.cursors
+---@param key string
+---@return table
+local function find_existing_cursors_at_same_cordinate(key)
+	local existing_cursors = {}
+
+	for i = 1, #M.cursors, 1 do
+		if M.cursors[i].key == key then
+			table.insert(existing_cursors, M.cursors[i])
+		end
+	end
+
+	return existing_cursors
+end
+
 ---Adds a cursor in cursor table if cursor doesn't exist, otherwise removes it
 local function add_or_remove_cursor()
 	local buf = vim.api.nvim_get_current_buf()
@@ -64,10 +78,11 @@ local function add_or_remove_cursor()
 
 	-- Remove Cursor if its already exist
 	local key = row .. ":" .. col
-	local index = findIndex(key)
+	local existing_cursors = find_existing_cursors_at_same_cordinate(key);
+	print(#existing_cursors)
 
 	-- If index is smaller than 0, then add new cursor to cursors table.
-	if index < 0 then
+	if #existing_cursors == 0 then
 		add_new_cursor_in_cursors(
 			{
 				x_cordinate = col,
@@ -77,7 +92,10 @@ local function add_or_remove_cursor()
 			}
 		)
 	else
-		remove_cursor_from_cursors(index)
+		for i = 1, #existing_cursors, 1 do
+			local index = findIndex(key)
+			remove_cursor_from_cursors(index)
+		end
 	end
 
 	Un_render_cursors();
@@ -157,6 +175,23 @@ function Replace_line(line_number, new_text, bufnr)
 	local lines = vim.api.nvim_buf_get_lines(bufnr, start, finish, false)
 
 	return lines[1]
+end
+
+--- Unstack_function remove all the stacked up cursors exepct one at the same x_cordinate
+---@param row integer
+---@param buffer integer
+function Unstack(row, col, buffer)
+	local extmarks = vim.api.nvim_buf_get_extmarks(
+		buffer,
+		M.namespace,
+		{ row, 0 },
+		{ row, 0 },
+		{}
+	)
+
+	for i = 1, #extmarks, 1 do
+		Debug_log("extmarks row: " .. extmarks[i][2] .. ", extmarks col: " .. extmarks[i][3])
+	end
 end
 
 --- sets x cordinate to all the cursors
