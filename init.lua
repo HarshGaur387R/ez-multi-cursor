@@ -3,7 +3,7 @@ local M = {}
 local Cursor = require("Cursor")
 local Debug_log = require("debug_log")
 
--- Storing multiple cursors positions
+-- Storing multiple curso--rs positions
 M.cursors = {}
 M.namespace = vim.api.nvim_create_namespace("ez-multi-cursor")
 M.enabled = false
@@ -37,7 +37,7 @@ local function remove_cursor_from_cursors(index)
 end
 
 
---- Adds a new cursor to cursors table
+--- Adds a new cursor to cursors --table
 ---@param cur Cursor
 local function add_new_cursor_in_cursors(cur)
 	local cursor = Cursor.new(cur.x_cordinate, cur.y_cordinate, cur.buf, nil, cur.key)
@@ -79,7 +79,6 @@ local function add_or_remove_cursor()
 	-- Remove Cursor if its already exist
 	local key = row .. ":" .. col
 	local existing_cursors = find_existing_cursors_at_same_cordinate(key);
-	print(#existing_cursors)
 
 	-- If index is smaller than 0, then add new cursor to cursors table.
 	if #existing_cursors == 0 then
@@ -92,7 +91,7 @@ local function add_or_remove_cursor()
 			}
 		)
 	else
-		for i = 1, #existing_cursors, 1 do
+		for _ = 1, #existing_cursors, 1 do
 			local index = findIndex(key)
 			remove_cursor_from_cursors(index)
 		end
@@ -125,22 +124,21 @@ function Un_render_cursors()
 	end
 end
 
----Add_Highlight function show create extmark on the current buffer and return cursorId.
+--- Add_Highlight function shows a vertical cursor bar using virtual text
 ---@param row integer
 ---@param col integer
 ---@param buf integer
 ---@return integer
 function Add_Highlight(row, col, buf)
-	local current_buff = vim.api.nvim_get_current_buf();
+	local current_buff = vim.api.nvim_get_current_buf()
 	local cursorId = 0
 	if buf == current_buff then
-		cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row, col, {
-			end_row = row,
-			end_col = col + 1,
-			hl_group = "Cursor"
+		cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row, col + 1, {
+			virt_text = { { "|", "CursorBar" } }, -- draw a vertical bar
+			virt_text_pos = "inline", -- insert beside text, not overlay
+			hl_mode = "combine"
 		})
 	end
-
 	return cursorId
 end
 
@@ -177,24 +175,36 @@ function Replace_line(line_number, new_text, bufnr)
 	return lines[1]
 end
 
---- Unstack_function remove all the stacked up cursors exepct one at the same x_cordinate
----@param row integer
+---This function returns [row, col] of extmark
+---@param id integer
 ---@param buffer integer
-function Unstack(row, col, buffer)
-	local extmarks = vim.api.nvim_buf_get_extmarks(
-		buffer,
-		M.namespace,
-		{ row, 0 },
-		{ row, 0 },
-		{}
-	)
+---@return vim.api.keyset.get_extmark_item_by_id
+function GetPositionOfExtMarks(id, buffer)
+	local position = vim.api.nvim_buf_get_extmark_by_id(buffer, M.namespace, id, {})
+	return position
+end
 
-	for i = 1, #extmarks, 1 do
-		Debug_log("extmarks row: " .. extmarks[i][2] .. ", extmarks col: " .. extmarks[i][3])
+--- InsertText function insert text at the given cursors positions
+---@param str string
+function InsertText(str)
+	--- TODO: Add text after the cursor
+	for i = 1, #M.cursors do
+		local cursor = M.cursors[i]
+		-- local line = Get_line(cursor.y_cordinate, cursor.buf)
+		local position = GetPositionOfExtMarks(cursor.cursorId, cursor.buf)
+		local row, col = position[1], position[2]
+
+		-- Replace text at [row, col] with inserted string
+		vim.api.nvim_buf_set_text(
+			cursor.buf,
+			row, col, -- start position
+			row, col, -- end position (same col → pure insertion)
+			{ str } -- replacement text
+		)
 	end
 end
 
---- sets x cordinate to all the cursors
+--- sets x cordinate to all the c--ursors
 --- @param x integer
 function Set_X_Cordinate(x)
 	local buffer = vim.api.nvim_get_current_buf();
@@ -308,6 +318,21 @@ function M.setup(opts)
 			Remove_All_Highlights(buf, M.namespace)
 		end,
 	})
+
+	vim.api.nvim_create_user_command(
+		'InsertText',
+		function(op)
+			InsertText(op.args)
+		end,
+		{
+			nargs = 1, -- Require exaclty one argument
+			desc = "Insert provided text at cursors"
+		}
+	)
+
+	if vim.fn.hlID("CursorBar") == 0 then
+		vim.api.nvim_set_hl(0, "CursorBar", { fg = "Yellow", bg = "NONE" })
+	end
 end
 
 return M
