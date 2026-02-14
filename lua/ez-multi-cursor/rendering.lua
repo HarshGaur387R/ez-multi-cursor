@@ -8,7 +8,7 @@ M.namespace = vim.api.nvim_create_namespace("ez-multi-cursor")
 ---@param col integer
 ---@param buf integer
 ---@return integer
-function M.ddd_highlight(row, col, buf)
+function M.add_highlight(row, col, buf)
     local current_buff = vim.api.nvim_get_current_buf();
     local cursorId = 0
     if buf == current_buff then
