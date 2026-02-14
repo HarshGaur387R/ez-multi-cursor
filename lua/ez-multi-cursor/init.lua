@@ -1,21 +1,32 @@
 -- ez-multi-cursor: Main entry point
 local M = {}
 
--- Import all modules
-local Config = require("ez-multi-cursor.config")
-local CursorsManager = require("ez-multi-cursor.cursors_manager")
-local Rendering = require("ez-multi-cursor.rendering")
-local Movement = require("ez-multi-cursor.movement")
-local TextOperations = require("ez-multi-cursor.text_operations")
+-- Lazy module imports - will be loaded on setup
+local Config
+local CursorsManager
+local Rendering
+local Movement
+local TextOperations
 
 -- Expose cursors for module access
-M.cursors = CursorsManager.cursors
-M.namespace = Rendering.namespace
 M.enabled = false
 
 --- Configure the plugin
 ---@param opts table
 function M.setup(opts)
+    -- Lazy load modules on setup
+    if not Config then
+        Config = require("ez-multi-cursor.config")
+        CursorsManager = require("ez-multi-cursor.cursors_manager")
+        Rendering = require("ez-multi-cursor.rendering")
+        Movement = require("ez-multi-cursor.movement")
+        TextOperations = require("ez-multi-cursor.text_operations")
+
+        -- Expose cursors for module access
+        M.cursors = CursorsManager.cursors
+        M.namespace = Rendering.namespace
+    end
+
     -- Setup configuration
     Config.setup(opts)
 
