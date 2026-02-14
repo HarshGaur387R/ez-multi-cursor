@@ -8,14 +8,14 @@ M.namespace = vim.api.nvim_create_namespace("ez-multi-cursor")
 ---@param col integer
 ---@param buf integer
 ---@return integer
-function M.add_highlight(row, col, buf)
-    local current_buff = vim.api.nvim_get_current_buf()
+function M.ddd_highlight(row, col, buf)
+    local current_buff = vim.api.nvim_get_current_buf();
     local cursorId = 0
     if buf == current_buff then
-        cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row, col + 1, {
-            virt_text = { { "|", "CursorBar" } }, -- draw a vertical bar
-            virt_text_pos = "inline",    -- insert beside text, not overlay
-            hl_mode = "combine"
+        cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row, col, {
+            end_row = row,
+            end_col = col + 1,
+            hl_group = "Cursor"
         })
     end
     return cursorId
