@@ -6,7 +6,12 @@ function Debug_log(msg)
 	local plugin_dir = vim.fn.fnamemodify(script_path, ":h")
 	local log_path = plugin_dir .. "/debug-log.text"
 
-	-- Open the file in append mode
+	-- Ensure plugin directory exists
+	if vim.fn.isdirectory(plugin_dir) == 0 then
+		vim.fn.mkdir(plugin_dir, "p")
+	end
+
+	-- Open the file in append mode (creates if doesn't exist)
 	local file, err = io.open(log_path, "a")
 	if not file then
 		vim.notify("Failed to open debug log file: " .. log_path .. " (" .. tostring(err) .. ")",
