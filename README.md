@@ -101,3 +101,8 @@ The plugin is organized into modular components for maintainability:
 - Cursors are limited to the current buffer
 - Works in normal mode (exits on entering insert mode)
 - Pseudo-cursors are visual only (not actual Neovim cursors)
+
+## TODO 
+
+- **Backspace** - Removing character from line on pressing Backspace
+- **:RemoveLines** - Command to delete lines where cursors are located
