@@ -1,102 +1,72 @@
 -- Cursor collection manager for ez-multi-cursor
-local Cursor = require("ez-multi-cursor.cursor")
 local Rendering = require("ez-multi-cursor.rendering")
 local Utils = require("ez-multi-cursor.utils")
+local NAMESPACE = Rendering.namespace
 
 local M = {}
 
 -- Storing multiple cursors positions
 M.cursors = {}
 
---- Finds the index of cursor in cursors table by its key field
----@param key string
+--- Returns current cursor's position (row and col)
+---@param win integer
 ---@return integer
-local function find_index(key)
-    local index = -1
+---@return integer
+local function get_cursor_position(win)
+	local pos = vim.api.nvim_win_get_cursor(win)
+	local row, col = pos[1], pos[2]
 
-    for i = 1, #M.cursors, 1 do
-        if M.cursors[i].key == key then
-            index = i
-            break
-        end
-    end
-
-    return index
+	return row, col
 end
 
---- Removes a cursor from cursors by given index
----@param index integer
-local function remove_cursor_from_cursors(index)
-    table.remove(M.cursors, index)
+local function is_there_already_an_extramark(target_row, target_col, buf, namespace)
+	local existing_extramark = vim.api.nvim_buf_get_extmarks(buf, namespace, { target_row, target_col },
+		{ target_row, target_col },
+		{ details = true })
+
+	for _, mark in ipairs(existing_extramark) do
+		local id, row, col = mark[1], mark[2], mark[3]
+
+		if (row == target_row) and (col == target_col) then
+			return { exist = true, id = id }
+		end
+	end
+
+	return { exist = false, id = nil }
 end
 
---- Adds a new cursor to cursors table
----@param cur table
-local function add_new_cursor_in_cursors(cur)
-    local cursor = Cursor.new(cur.x_cordinate, cur.y_cordinate, cur.buf, nil, cur.key)
-    table.insert(M.cursors, cursor)
-end
-
---- Finds all the cursors at same coordinate from M.cursors
----@param key string
----@return table
-local function find_existing_cursors_at_same_cordinate(key)
-    local existing_cursors = {}
-
-    for i = 1, #M.cursors, 1 do
-        if M.cursors[i].key == key then
-            table.insert(existing_cursors, M.cursors[i])
-        end
-    end
-
-    return existing_cursors
-end
-
---- Adds a cursor in cursor table if cursor doesn't exist, otherwise removes it
 function M.add_or_remove_cursor()
-    local buf = vim.api.nvim_get_current_buf()
-    local current_window = vim.api.nvim_get_current_win()
-    local pos = vim.api.nvim_win_get_cursor(current_window)
-    local row, col = pos[1], pos[2]
-    local current_line = Utils.get_line(row, buf)
+	local buf = vim.api.nvim_get_current_buf()
+	local current_window = vim.api.nvim_get_current_win()
+	local row, col = get_cursor_position(current_window)
+	local current_line = Utils.get_line(row - 1, buf)
+	local total_line = vim.api.nvim_buf_line_count(buf)
 
-    -- Early return for empty lines
-    if #current_line == 0 then
-        current_line = Utils.replace_line(row, " ", buf)
-        col = 0
-    end
+	-- Safetu check
+	if row > total_line or col < 0 then return end
 
-    -- Early return so col_end wont exceed
-    if col == #current_line then return end
+	local mark = is_there_already_an_extramark(row - 1, col, buf, NAMESPACE)
 
-    -- Remove Cursor if its already exist
-    local key = row .. ":" .. col
-    local existing_cursors = find_existing_cursors_at_same_cordinate(key)
+	if mark.exist then
+		vim.api.nvim_buf_del_extmark(buf, NAMESPACE, mark.id)
+		return
+	end
 
-    -- If index is smaller than 0, then add new cursor to cursors table.
-    if #existing_cursors == 0 then
-        add_new_cursor_in_cursors(
-            {
-                x_cordinate = col,
-                y_cordinate = row,
-                key = key,
-                buf = buf
-            }
-        )
-    else
-        for _ = 1, #existing_cursors, 1 do
-            local index = find_index(key)
-            remove_cursor_from_cursors(index)
-        end
-    end
+	if #current_line == 0 then
+		current_line = Utils.replace_line(row - 1, " ", buf)
+		col = 0
+	end
 
-    Rendering.un_render_cursors(M.cursors)
-    Rendering.render_cursors(M.cursors)
+	vim.api.nvim_buf_set_extmark(buf, NAMESPACE, row - 1, col, {
+		end_row = row - 1,
+		end_col = col + 1,
+		hl_group = "Cursor"
+	})
 end
 
 --- Clear all cursors
 function M.clear_all_cursors()
-    M.cursors = {}
+	M.cursors = {}
 end
 
 return M
