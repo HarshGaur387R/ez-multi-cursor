@@ -47,14 +47,14 @@ function M.setup(opts)
 
 	vim.keymap.set("n", "<A-Right>", function()
 		vim.schedule(function()
-			Movement.set_x_cordinate(CursorsManager.cursors, 1)
+			Movement.set_x_cordinate(1)
 		end)
 		return ""
 	end, { desc = "Move to right" })
 
 	vim.keymap.set("n", "<A-Left>", function()
 		vim.schedule(function()
-			Movement.set_x_cordinate(CursorsManager.cursors, -1)
+			Movement.set_x_cordinate(-1)
 		end)
 		return ""
 	end, { desc = "Move to left" })

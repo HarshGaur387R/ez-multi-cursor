@@ -13,7 +13,7 @@ function M.get_line(line_number, buf)
 end
 
 --- Replace_line: Replace a specific line in the current buffer.
----@param line_number integer  -- 1-based line number
+---@param line_number integer  -- 0 Based indexing
 ---@param new_text string      -- replacement text
 ---@param bufnr integer        -- buffer number
 ---@return string -- Newly created line
@@ -53,6 +53,21 @@ function M.is_there_already_an_extramark(target_row, target_col, buf, namespace)
 	end
 
 	return { exist = false, id = nil }
+end
+
+--- Append a whitespace at the end of a line
+---@param bufnr integer   -- buffer number (0 = current buffer)
+---@param line_number integer -- 0-based line index
+function M.append_whitespace(bufnr, line_number)
+	-- Get the current line
+	local line = vim.api.nvim_buf_get_lines(bufnr, line_number, line_number + 1, false)[1]
+	if not line then return end
+
+	-- Find the end column (length of line)
+	local col = #line
+
+	-- Insert a space at the end of the line
+	vim.api.nvim_buf_set_text(bufnr, line_number, col, line_number, col, { " " })
 end
 
 return M
