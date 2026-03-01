@@ -61,14 +61,14 @@ function M.setup(opts)
 
 	vim.keymap.set("n", "<A-Up>", function()
 		vim.schedule(function()
-			Movement.set_y_cordinate(CursorsManager.cursors, -1)
+			Movement.set_y_cordinate(-1)
 		end)
 		return ""
 	end, { desc = "Move to up" })
 
 	vim.keymap.set("n", "<A-Down>", function()
 		vim.schedule(function()
-			Movement.set_y_cordinate(CursorsManager.cursors, 1)
+			Movement.set_y_cordinate(1)
 		end)
 		return ""
 	end, { desc = "Move to down" })
