@@ -87,7 +87,7 @@ function M.setup(opts)
 	vim.api.nvim_create_user_command(
 		'InsertText',
 		function(op)
-			TextOperations.insert_text(CursorsManager.cursors, op.args)
+			TextOperations.insert_text(op.args)
 		end,
 		{
 			nargs = 1, -- Require exactly one argument
