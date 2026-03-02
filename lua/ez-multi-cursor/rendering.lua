@@ -1,4 +1,5 @@
 -- Rendering and highlighting module for ez-multi-cursor
+local Utils = require("ez-multi-cursor.utils")
 local M = {}
 
 M.namespace = vim.api.nvim_create_namespace("ez-multi-cursor")
@@ -50,6 +51,19 @@ end
 function M.setup_highlights()
 	if vim.fn.hlID("CursorBar") == 0 then
 		vim.api.nvim_set_hl(0, "CursorBar", { fg = "Yellow", bg = "NONE" })
+	end
+end
+
+--- Add n number cursors vertically
+--- @param n integer
+--- @param y integer
+function M.add_n_cursors_vertically(n, y)
+	local buf = vim.api.nvim_get_current_buf()
+	local current_window = vim.api.nvim_get_current_win()
+	local row, col = Utils.get_cursor_position(current_window)
+
+	for i = 1, n, 1 do
+
 	end
 end
 

@@ -83,6 +83,34 @@ function M.setup(opts)
 		end,
 	})
 
+	vim.keymap.set("n", "<C-d>j", function()
+		vim.schedule(function()
+			local n_string = vim.fn.input("Enter line number: ")
+			local n = tonumber(n_string) -- Convert to string to number
+
+			if type(n) == "number" then
+				Rendering.add_n_cursors_vertically(n, 1)
+			else
+				vim.print("Expected an integer input")
+			end
+		end)
+		return ""
+	end, { desc = "Move to down" })
+
+	vim.keymap.set("n", "<C-d>k", function()
+		vim.schedule(function()
+			local n_string = vim.fn.input("Enter line number: ")
+			local n = tonumber(n_string) -- Convert to string to number
+
+			if type(n) == "number" then
+				Rendering.add_n_cursors_vertically(n, -1)
+			else
+				vim.print("Expected an integer input")
+			end
+		end)
+		return ""
+	end, { desc = "Move to up" })
+
 	-- Setup user commands
 	vim.api.nvim_create_user_command(
 		'InsertText',
