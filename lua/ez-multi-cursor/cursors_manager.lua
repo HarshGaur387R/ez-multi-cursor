@@ -6,8 +6,7 @@ local NAMESPACE = Rendering.namespace
 local M = {}
 
 -- Storing multiple cursors positions
-M.cursors = {}
-
+M.active = false
 
 function M.add_or_remove_cursor()
 	local buf = vim.api.nvim_get_current_buf()
