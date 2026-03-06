@@ -70,4 +70,23 @@ function M.append_whitespace(bufnr, line_number)
 	vim.api.nvim_buf_set_text(bufnr, line_number, col, line_number, col, { " " })
 end
 
+--- Removes the character at a given index from a string.
+-- @param s The input string (file content, may have leading/trailing spaces).
+-- @param idx The 1-based index of the character to remove.
+-- @return A new string with the character at `idx` removed.
+function M.remove_char_at(s, idx)
+	-- Validate inputs
+	if type(s) ~= "string" or type(idx) ~= "number" then
+		error("Invalid arguments: expected (string, number)")
+	end
+
+	-- Ensure index is within bounds
+	if idx < 1 or idx > #s then
+		error("Index out of range: " .. idx)
+	end
+
+	-- Remove the character at position `idx`
+	return string.sub(s, 1, idx - 1) .. string.sub(s, idx + 1)
+end
+
 return M
