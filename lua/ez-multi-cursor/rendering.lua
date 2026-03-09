@@ -34,6 +34,24 @@ function M.remove_highlight(cursorId, buf)
 	end
 end
 
+function M.overwrite_highlight(row, col, buf)
+	local current_buff = vim.api.nvim_get_current_buf();
+	local cursorId = nil
+	if buf == current_buff then
+		local mark = Utils.is_there_already_an_extramark(row, col, current_buff, M.namespace)
+
+		if mark.exist == true then M.remove_highlight(mark.id, buf) end
+
+		cursorId = vim.api.nvim_buf_set_extmark(buf, M.namespace, row, col, {
+			end_row = row,
+			end_col = col + 1,
+			hl_group = "Cursor",
+		})
+		TextInsertion.setState(true)
+	end
+	return cursorId
+end
+
 --- Remove_All_Highlights: Remove all highlights at once
 ---@param buf integer
 function M.remove_all_highlights(buf)

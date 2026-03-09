@@ -39,6 +39,12 @@ function M.get_cursor_position(win)
 	return row, col
 end
 
+--- Check if there is already an extamark if yes then it returns {id=integer, exist=true}
+---@param target_row integer
+---@param target_col integer
+---@param buf integer
+---@param namespace integer
+---@return {exist : boolean, id : integer}
 function M.is_there_already_an_extramark(target_row, target_col, buf, namespace)
 	local existing_extramark = vim.api.nvim_buf_get_extmarks(buf, namespace, { target_row, target_col },
 		{ target_row, target_col },
@@ -71,9 +77,9 @@ function M.append_whitespace(bufnr, line_number)
 end
 
 --- Removes the character at a given index from a string.
--- @param s The input string (file content, may have leading/trailing spaces).
--- @param idx The 1-based index of the character to remove.
--- @return A new string with the character at `idx` removed.
+---@param s string -- The input string (file content, may have leading/trailing spaces).
+---@param idx integer -- The 1-based index of the character to remove.
+---@return string -- A new string with the character at `idx` removed.
 function M.remove_char_at(s, idx)
 	-- Validate inputs
 	if type(s) ~= "string" or type(idx) ~= "number" then
